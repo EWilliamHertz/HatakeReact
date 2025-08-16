@@ -1,0 +1,207 @@
+<!-- ======================================================= -->
+<!-- FILE: public/index.html                                 -->
+<!-- ======================================================= -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HatakeSocial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Link to our new custom stylesheet -->
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+    <div id="app">
+        <transition name="fade" mode="out-in">
+            <!-- Login/Register Screen -->
+            <div v-if="!user" key="login" class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+                <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
+                    <div class="flex justify-center mb-6"><img src="https://i.imgur.com/B06rBhI.png" alt="Logo" class="h-16"></div>
+                    <h2 class="text-2xl font-bold text-center text-gray-800">Welcome to HatakeSocial</h2>
+                    <p class="text-center text-gray-500 mb-6">Your TCG Community Hub</p>
+                    <div v-if="authError" class="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-lg">{{ authError }}</div>
+                    <div class="space-y-4">
+                        <input v-model="email" type="email" placeholder="Email Address" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <input v-model="password" type="password" placeholder="Password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 mt-6">
+                        <button @click="handleLogin" class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 font-semibold">Login</button>
+                        <button @click="handleRegister" class="w-full bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 font-semibold">Register</button>
+                    </div>
+                    <div class="my-6 flex items-center"><hr class="w-full"><span class="px-2 text-sm">OR</span><hr class="w-full"></div>
+                    <button @click="handleGoogleLogin" class="w-full flex items-center justify-center gap-3 border py-2 rounded-lg hover:bg-gray-100">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
+                        <span class="font-semibold">Sign in with Google</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main App View -->
+            <div v-else key="app-main" class="flex">
+                <!-- Sidebar -->
+                <aside class="w-64 h-screen bg-white shadow-md flex flex-col p-4 fixed">
+                    <div class="flex justify-center mb-8">
+                        <img src="https://i.imgur.com/B06rBhI.png" alt="HatakeSocial Logo" class="h-16">
+                    </div>
+                    <!-- UPDATED Navigation Links -->
+                    <nav class="flex flex-col space-y-2">
+                        <a href="#" @click.prevent="navigateTo('dashboard')" :class="getNavClass('dashboard')">Dashboard</a>
+                        <a href="#" @click.prevent="navigateTo('social')" :class="getNavClass('social')">Social Feed</a>
+                        <a href="#" @click.prevent="navigateTo('collections')" :class="getNavClass('collections')">Collections</a>
+                        <a href="#" @click.prevent="navigateTo('marketplace')" :class="getNavClass('marketplace')">Marketplace</a>
+                        <a href="#" @click.prevent="navigateTo('trading')" :class="getNavClass('trading')">Trading</a>
+                        <a href="#" @click.prevent="navigateTo('messages')" :class="getNavClass('messages')">Messages</a>
+                        <a href="#" @click.prevent="navigateTo('profile')" :class="getNavClass('profile')">Profile</a>
+                        <a href="#" @click.prevent="navigateTo('settings')" :class="getNavClass('settings')">Settings</a>
+                    </nav>
+                    <!-- User Profile section -->
+                    <div class="mt-auto">
+                        <div class="p-2">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">{{ user.email ? user.email.charAt(0).toUpperCase() : 'U' }}</div>
+                                <div>
+                                    <p class="text-sm font-semibold truncate">{{ user.displayName || 'User' }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ user.email }}</p>
+                                </div>
+                            </div>
+                            <button @click="handleSignOut" class="w-full text-sm text-center text-red-500 hover:text-red-700 py-1">Sign Out</button>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area -->
+                <main class="ml-64 w-full p-8">
+                    <!-- Dashboard Page -->
+                    <div v-if="currentPage === 'dashboard'">
+                         <h1 class="text-3xl font-bold">Dashboard</h1>
+                        <p class="text-gray-600 mt-1">Welcome back, {{ user.displayName || 'User' }}!</p>
+                        <div v-if="dashboardError" class="mt-6 p-4 bg-red-100 text-red-700 rounded-lg"><strong>Error:</strong> {{ dashboardError }}</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+                            <div v-for="card in statCards" class="bg-white p-6 rounded-lg shadow-sm border">
+                                <template v-if="isLoading"><div class="animate-pulse space-y-2"><div class="h-4 bg-gray-200 rounded w-1/2"></div><div class="h-8 bg-gray-300 rounded w-3/4"></div><div class="h-4 bg-gray-200 rounded w-2/3"></div></div></template>
+                                <template v-else>
+                                    <p class="text-sm text-gray-500">{{ card.title }}</p>
+                                    <p class="text-3xl font-semibold mt-1">{{ card.prefix || '' }}{{ stats[card.key] }}</p>
+                                    <p class="text-sm mt-2 text-gray-500">{{ getSubtitle(card) }}</p>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Feed Page -->
+                    <div v-if="currentPage === 'social'">
+                        <h1 class="text-3xl font-bold">Social Feed</h1>
+                        <p class="text-gray-600 mt-1">Connect with the TCG community.</p>
+                        <!-- Post Creation Form -->
+                        <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
+                            <textarea v-model="newPostContent" class="w-full p-2 border rounded-md" placeholder="What's happening in your TCG world?"></textarea>
+                            <div class="flex justify-end mt-2">
+                                <button @click="createPost" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">Post</button>
+                            </div>
+                        </div>
+                        <!-- Posts List -->
+                        <div class="mt-6 space-y-4">
+                            <div v-for="post in posts" class="bg-white p-4 rounded-lg shadow-sm border">
+                                <p class="font-semibold">{{ post.authorName || 'Anonymous' }}</p>
+                                <p class="text-gray-700 whitespace-pre-wrap">{{ post.content }}</p>
+                                <p class="text-xs text-gray-400 mt-2">{{ formatDate(post.createdAt) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Collections Page -->
+                    <div v-if="currentPage === 'collections'">
+                        <h1 class="text-3xl font-bold">My Collection</h1>
+                        <p class="text-gray-600 mt-1">Manage your TCG collection, track values, and discover new cards.</p>
+                        <!-- Scryfall Search -->
+                        <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
+                            <h2 class="font-semibold mb-2">Add Card to Collection</h2>
+                            <div class="flex gap-2">
+                                <input v-model="scryfallQuery" @keyup.enter="searchScryfall" type="text" placeholder="Search for a card (e.g., Black Lotus)" class="w-full p-2 border rounded-md">
+                                <button @click="searchScryfall" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Search</button>
+                            </div>
+                            <!-- Search Results -->
+                            <div v-if="scryfallResults.length > 0" class="mt-4 max-h-96 overflow-y-auto pr-2">
+                                <p class="text-sm text-gray-600 mb-2">Found {{ scryfallResults.length }} card(s). Price is based on your settings.</p>
+                                <div v-for="card in scryfallResults" class="mt-2 p-2 border rounded-md flex justify-between items-center">
+                                    <div>
+                                        <p class="font-semibold">{{ card.name }}</p>
+                                        <p class="text-sm text-gray-500">{{ card.set_name }}</p>
+                                    </div>
+                                    <p class="font-bold text-lg">{{ card.price }}</p>
+                                </div>
+                            </div>
+                            <p v-if="scryfallError" class="text-red-500 mt-2">{{ scryfallError }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Marketplace, Trading, Messages (Placeholders) -->
+                    <div v-if="['marketplace', 'trading', 'messages'].includes(currentPage)">
+                        <h1 class="text-3xl font-bold capitalize">{{ currentPage }}</h1>
+                        <div class="mt-6 bg-white p-8 rounded-lg shadow-sm border">
+                            <p class="text-center text-gray-500">This feature is coming soon!</p>
+                        </div>
+                    </div>
+
+                    <!-- Profile Page -->
+                    <div v-if="currentPage === 'profile'">
+                        <h1 class="text-3xl font-bold">Profile & Referrals</h1>
+                        <p class="text-gray-600 mt-1">Manage your profile and invite others.</p>
+                        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Referral Link Card -->
+                            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                                <h2 class="text-lg font-semibold mb-2">Your Invitation Link</h2>
+                                <p class="text-sm text-gray-500 mb-4">Share this link with friends. When they sign up, they'll be added to your referral list.</p>
+                                <div class="flex items-center space-x-2 p-2 border rounded-md bg-gray-50">
+                                    <input :value="referralLink" readonly class="w-full bg-transparent outline-none text-sm text-gray-600">
+                                    <button @click="copyReferralLink" class="px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600">{{ copyButtonText }}</button>
+                                </div>
+                            </div>
+                            <!-- Referred Users Card -->
+                            <div class="bg-white p-6 rounded-lg shadow-sm border">
+                                <h2 class="text-lg font-semibold mb-4">Referred Users ({{ referredUsers.length }})</h2>
+                                <div v-if="referredUsers.length > 0" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                    <div v-for="refUser in referredUsers" class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                                        <p class="text-sm text-gray-700">{{ refUser.displayName || refUser.email }}</p>
+                                        <span class="text-xs text-gray-400">Joined: {{ formatDate(refUser.createdAt) }}</span>
+                                    </div>
+                                </div>
+                                <p v-else class="text-sm text-center text-gray-500 py-4">You haven't referred any users yet.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Page -->
+                    <div v-if="currentPage === 'settings'">
+                        <h1 class="text-3xl font-bold">Settings</h1>
+                        <p class="text-gray-600 mt-1">Customize your experience.</p>
+                        <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
+                            <h2 class="text-lg font-semibold mb-2">Pricing Preference</h2>
+                            <p class="text-sm text-gray-500 mb-4">Choose your preferred currency for card prices from the Scryfall API.</p>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="radio" v-model="pricePreference" value="usd" @change="savePricePreference" name="price" class="form-radio text-green-500 focus:ring-green-500">
+                                    <span class="ml-2">TCGPlayer (USD)</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" v-model="pricePreference" value="eur" @change="savePricePreference" name="price" class="form-radio text-green-500 focus:ring-green-500">
+                                    <span class="ml-2">CardMarket (EUR)</span>
+                                </label>
+                            </div>
+                            <p v-if="settingsSaved" class="text-green-600 text-sm mt-4 transition-opacity duration-300">Settings saved successfully!</p>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </transition>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script type="module" src="./app.js"></script>
+</body>
+</html>
