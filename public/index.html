@@ -1,5 +1,5 @@
 <!-- ======================================================= -->
-<!-- FILE: public/index.html                                 -->
+<!-- FILE: public/index.html (Complete and Corrected)        -->
 <!-- ======================================================= -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11,14 +11,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Link to our new custom stylesheet -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
     <div id="app">
         <transition name="fade" mode="out-in">
-            <!-- Login/Register Screen -->
+            <!-- Login Screen -->
             <div v-if="!user" key="login" class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
                 <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
                     <div class="flex justify-center mb-6"><img src="https://i.imgur.com/B06rBhI.png" alt="Logo" class="h-16"></div>
@@ -48,7 +48,6 @@
                     <div class="flex justify-center mb-8">
                         <img src="https://i.imgur.com/B06rBhI.png" alt="HatakeSocial Logo" class="h-16">
                     </div>
-                    <!-- UPDATED Navigation Links -->
                     <nav class="flex flex-col space-y-2">
                         <a href="#" @click.prevent="navigateTo('dashboard')" :class="getNavClass('dashboard')">Dashboard</a>
                         <a href="#" @click.prevent="navigateTo('social')" :class="getNavClass('social')">Social Feed</a>
@@ -59,13 +58,12 @@
                         <a href="#" @click.prevent="navigateTo('profile')" :class="getNavClass('profile')">Profile</a>
                         <a href="#" @click.prevent="navigateTo('settings')" :class="getNavClass('settings')">Settings</a>
                     </nav>
-                    <!-- User Profile section -->
                     <div class="mt-auto">
                         <div class="p-2">
                             <div class="flex items-center space-x-3 mb-2">
                                 <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">{{ user.email ? user.email.charAt(0).toUpperCase() : 'U' }}</div>
                                 <div>
-                                    <p class="text-sm font-semibold truncate">{{ user.displayName || 'User' }}</p>
+                                    <p class="text-sm font-semibold truncate">{{ userProfile.displayName || 'User' }}</p>
                                     <p class="text-xs text-gray-500 truncate">{{ user.email }}</p>
                                 </div>
                             </div>
@@ -78,8 +76,8 @@
                 <main class="ml-64 w-full p-8">
                     <!-- Dashboard Page -->
                     <div v-if="currentPage === 'dashboard'">
-                         <h1 class="text-3xl font-bold">Dashboard</h1>
-                        <p class="text-gray-600 mt-1">Welcome back, {{ user.displayName || 'User' }}!</p>
+                        <h1 class="text-3xl font-bold">Dashboard</h1>
+                        <p class="text-gray-600 mt-1">Welcome back, {{ userProfile.displayName || 'User' }}!</p>
                         <div v-if="dashboardError" class="mt-6 p-4 bg-red-100 text-red-700 rounded-lg"><strong>Error:</strong> {{ dashboardError }}</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                             <div v-for="card in statCards" class="bg-white p-6 rounded-lg shadow-sm border">
@@ -97,82 +95,50 @@
                     <div v-if="currentPage === 'social'">
                         <h1 class="text-3xl font-bold">Social Feed</h1>
                         <p class="text-gray-600 mt-1">Connect with the TCG community.</p>
-                        <!-- Post Creation Form -->
                         <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
-                            <textarea v-model="newPostContent" class="w-full p-2 border rounded-md" placeholder="What's happening in your TCG world?"></textarea>
-                            <div class="flex justify-end mt-2">
-                                <button @click="createPost" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">Post</button>
+                            <textarea v-model="newPostContent" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="What's happening in your TCG world?"></textarea>
+                            <div class="mt-4 flex items-center justify-between">
+                                <label for="media-upload" class="cursor-pointer text-sm text-blue-600 hover:underline flex items-center">
+                                    <span class="material-icons mr-1">add_photo_alternate</span>
+                                    Add Photo or Video
+                                </label>
+                                <input id="media-upload" type="file" @change="handleMediaFileChange" class="hidden" accept="image/*,video/*">
+                                <button @click="createPost" :disabled="isUploading" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-gray-400">Post</button>
+                            </div>
+                            <div v-if="mediaFile" class="mt-2">
+                                <img v-if="mediaPreviewUrl && mediaFile.type.startsWith('image/')" :src="mediaPreviewUrl" class="max-h-40 rounded-lg border">
+                                <video v-if="mediaPreviewUrl && mediaFile.type.startsWith('video/')" :src="mediaPreviewUrl" class="max-h-40 rounded-lg border" controls></video>
+                                <div v-if="uploadProgress > 0 && uploadProgress < 100" class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                    <div class="bg-blue-600 h-2.5 rounded-full" :style="{ width: uploadProgress + '%' }"></div>
+                                </div>
+                                <p v-if="uploadProgress === 100" class="text-green-600 text-sm">Upload complete!</p>
                             </div>
                         </div>
-                        <!-- Posts List -->
                         <div class="mt-6 space-y-4">
-                            <div v-for="post in posts" class="bg-white p-4 rounded-lg shadow-sm border">
-                                <p class="font-semibold">{{ post.authorName || 'Anonymous' }}</p>
-                                <p class="text-gray-700 whitespace-pre-wrap">{{ post.content }}</p>
-                                <p class="text-xs text-gray-400 mt-2">{{ formatDate(post.createdAt) }}</p>
+                            <div v-for="post in posts" :key="post.id" class="bg-white p-4 rounded-lg shadow-sm border">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="font-semibold">{{ post.authorUsername || 'Anonymous' }}</p>
+                                        <p class="text-xs text-gray-400">{{ formatDate(post.createdAt) }}</p>
+                                    </div>
+                                    <button v-if="userProfile && userProfile.isAdmin" @click="deletePost(post.id)" class="text-red-500 hover:text-red-700 p-1 rounded-full">
+                                        <span class="material-icons">delete</span>
+                                    </button>
+                                </div>
+                                <p class="text-gray-700 mt-2 whitespace-pre-wrap">{{ post.content }}</p>
+                                <div v-if="post.mediaUrl" class="mt-4">
+                                     <img v-if="post.mediaType.startsWith('image/')" :src="post.mediaUrl" class="max-h-80 rounded-lg border">
+                                     <video v-if="post.mediaType.startsWith('video/')" :src="post.mediaUrl" class="max-h-80 rounded-lg border" controls></video>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Collections Page -->
-                    <div v-if="currentPage === 'collections'">
-                        <h1 class="text-3xl font-bold">My Collection</h1>
-                        <p class="text-gray-600 mt-1">Manage your TCG collection, track values, and discover new cards.</p>
-                        <!-- Scryfall Search -->
-                        <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
-                            <h2 class="font-semibold mb-2">Add Card to Collection</h2>
-                            <div class="flex gap-2">
-                                <input v-model="scryfallQuery" @keyup.enter="searchScryfall" type="text" placeholder="Search for a card (e.g., Black Lotus)" class="w-full p-2 border rounded-md">
-                                <button @click="searchScryfall" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Search</button>
-                            </div>
-                            <!-- Search Results -->
-                            <div v-if="scryfallResults.length > 0" class="mt-4 max-h-96 overflow-y-auto pr-2">
-                                <p class="text-sm text-gray-600 mb-2">Found {{ scryfallResults.length }} card(s). Price is based on your settings.</p>
-                                <div v-for="card in scryfallResults" class="mt-2 p-2 border rounded-md flex justify-between items-center">
-                                    <div>
-                                        <p class="font-semibold">{{ card.name }}</p>
-                                        <p class="text-sm text-gray-500">{{ card.set_name }}</p>
-                                    </div>
-                                    <p class="font-bold text-lg">{{ card.price }}</p>
-                                </div>
-                            </div>
-                            <p v-if="scryfallError" class="text-red-500 mt-2">{{ scryfallError }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Marketplace, Trading, Messages (Placeholders) -->
-                    <div v-if="['marketplace', 'trading', 'messages'].includes(currentPage)">
+                    <!-- Other Pages (Placeholders) -->
+                    <div v-if="['collections', 'marketplace', 'trading', 'messages', 'profile'].includes(currentPage)">
                         <h1 class="text-3xl font-bold capitalize">{{ currentPage }}</h1>
                         <div class="mt-6 bg-white p-8 rounded-lg shadow-sm border">
                             <p class="text-center text-gray-500">This feature is coming soon!</p>
-                        </div>
-                    </div>
-
-                    <!-- Profile Page -->
-                    <div v-if="currentPage === 'profile'">
-                        <h1 class="text-3xl font-bold">Profile & Referrals</h1>
-                        <p class="text-gray-600 mt-1">Manage your profile and invite others.</p>
-                        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <!-- Referral Link Card -->
-                            <div class="bg-white p-6 rounded-lg shadow-sm border">
-                                <h2 class="text-lg font-semibold mb-2">Your Invitation Link</h2>
-                                <p class="text-sm text-gray-500 mb-4">Share this link with friends. When they sign up, they'll be added to your referral list.</p>
-                                <div class="flex items-center space-x-2 p-2 border rounded-md bg-gray-50">
-                                    <input :value="referralLink" readonly class="w-full bg-transparent outline-none text-sm text-gray-600">
-                                    <button @click="copyReferralLink" class="px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600">{{ copyButtonText }}</button>
-                                </div>
-                            </div>
-                            <!-- Referred Users Card -->
-                            <div class="bg-white p-6 rounded-lg shadow-sm border">
-                                <h2 class="text-lg font-semibold mb-4">Referred Users ({{ referredUsers.length }})</h2>
-                                <div v-if="referredUsers.length > 0" class="space-y-3 max-h-60 overflow-y-auto pr-2">
-                                    <div v-for="refUser in referredUsers" class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                                        <p class="text-sm text-gray-700">{{ refUser.displayName || refUser.email }}</p>
-                                        <span class="text-xs text-gray-400">Joined: {{ formatDate(refUser.createdAt) }}</span>
-                                    </div>
-                                </div>
-                                <p v-else class="text-sm text-center text-gray-500 py-4">You haven't referred any users yet.</p>
-                            </div>
                         </div>
                     </div>
 
@@ -180,20 +146,42 @@
                     <div v-if="currentPage === 'settings'">
                         <h1 class="text-3xl font-bold">Settings</h1>
                         <p class="text-gray-600 mt-1">Customize your experience.</p>
-                        <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
-                            <h2 class="text-lg font-semibold mb-2">Pricing Preference</h2>
-                            <p class="text-sm text-gray-500 mb-4">Choose your preferred currency for card prices from the Scryfall API.</p>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" v-model="pricePreference" value="usd" @change="savePricePreference" name="price" class="form-radio text-green-500 focus:ring-green-500">
-                                    <span class="ml-2">TCGPlayer (USD)</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" v-model="pricePreference" value="eur" @change="savePricePreference" name="price" class="form-radio text-green-500 focus:ring-green-500">
-                                    <span class="ml-2">CardMarket (EUR)</span>
-                                </label>
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="md:col-span-1">
+                                <nav class="flex flex-col space-y-1">
+                                    <a href="#" @click.prevent="currentSettingsTab = 'account'" :class="getSettingsTabClass('account')">Account</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'shipping'" :class="getSettingsTabClass('shipping')">Shipping</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'security'" :class="getSettingsTabClass('security')">Security</a>
+                                </nav>
                             </div>
-                            <p v-if="settingsSaved" class="text-green-600 text-sm mt-4 transition-opacity duration-300">Settings saved successfully!</p>
+                            <div class="md:col-span-2">
+                                <div v-if="currentSettingsTab === 'account'" class="bg-white p-6 rounded-lg shadow-sm border">
+                                    <h2 class="text-xl font-semibold mb-4">Account Settings</h2>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Display Name</label>
+                                            <input v-model="displayName" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Username (@handle)</label>
+                                            <input v-model="username" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
+                                        </div>
+                                    </div>
+                                    <h3 class="text-lg font-semibold mt-6 mb-2">Pricing Preference</h3>
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center"><input type="radio" v-model="pricePreference" value="usd" name="price" class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300"> <span class="ml-2">TCGPlayer (USD)</span></label>
+                                        <label class="flex items-center"><input type="radio" v-model="pricePreference" value="eur" name="price" class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300"> <span class="ml-2">CardMarket (EUR)</span></label>
+                                    </div>
+                                    <div class="mt-6">
+                                        <button @click="saveProfileSettings" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Account Settings</button>
+                                        <p v-if="settingsSaved" class="text-green-600 text-sm mt-2">Settings saved!</p>
+                                    </div>
+                                </div>
+                                <div v-if="['shipping', 'security'].includes(currentSettingsTab)" class="bg-white p-6 rounded-lg shadow-sm border">
+                                    <h2 class="text-xl font-semibold capitalize mb-4">{{ currentSettingsTab }} Settings</h2>
+                                    <p class="text-center text-gray-500">This feature is coming soon.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </main>
