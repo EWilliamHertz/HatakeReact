@@ -1,15 +1,9 @@
-/* ======================================================= */
-/* FILE: firebase-config.js                                */
-/* This file handles all Firebase setup and exports the    */
-/* services our app will need.                             */
-/* ======================================================= */
-
-// Import functions from the Firebase SDKs
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-// Your web app's Firebase configuration - THIS IS NOW COMPLETE AND CORRECT
+// Your web app's Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyD2Z9tCmmgReMG77ywXukKC_YIXsbP3uoU",
     authDomain: "hatakesocial-88b5e.firebaseapp.com",
@@ -24,3 +18,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);

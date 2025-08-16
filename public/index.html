@@ -1,6 +1,3 @@
-<!-- ======================================================= -->
-<!-- FILE: public/index.html (Complete and Corrected)        -->
-<!-- ======================================================= -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,9 +11,55 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="./style.css">
 </head>
-<body>
+<body class="bg-gray-100">
 
     <div id="app">
+        <!-- Bulk Add Modal -->
+        <div v-if="isBulkAddModalVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <!-- Step 1: Text Input -->
+                <div v-if="bulkAddStep === 1">
+                    <h2 class="text-xl font-bold mb-4">Bulk Add from Text</h2>
+                    <p class="text-sm text-gray-600 mb-4">Enter one card per line. You can specify quantity (e.g., "2 Sol Ring").</p>
+                    <textarea v-model="bulkAddText" class="w-full h-48 p-2 border rounded-md" placeholder="1 Black Lotus&#10;2 Sol Ring&#10;Brainstorm"></textarea>
+                    <div class="mt-4 flex justify-end gap-3">
+                        <button @click="isBulkAddModalVisible = false" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
+                        <button @click="processBulkAddText" :disabled="isAddingCards" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400">
+                            <span v-if="isAddingCards">Processing...</span>
+                            <span v-else>Find Cards</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Step 2: Card Selection -->
+                <div v-if="bulkAddStep === 2" class="flex flex-col h-full">
+                    <h2 class="text-xl font-bold mb-4">Confirm Card Versions</h2>
+                    <p class="text-sm text-gray-600 mb-4">Select the correct version for each card you want to add.</p>
+                    <div class="overflow-y-auto flex-grow pr-2">
+                        <div v-for="(card, index) in cardsToConfirm" :key="index" class="mb-4 p-4 border rounded-md">
+                            <h3 class="font-semibold text-lg">{{ card.quantity }}x {{ card.name }}</h3>
+                            <div v-if="card.printings.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                                <div v-for="printing in card.printings" :key="printing.id" @click="card.selectedPrinting = printing.id" 
+                                     :class="{'ring-2 ring-blue-500': card.selectedPrinting === printing.id}"
+                                     class="cursor-pointer border rounded-lg p-2 hover:bg-gray-100">
+                                    <img :src="printing.imageUrl" :alt="printing.set" class="w-full rounded-md mb-2">
+                                    <p class="text-sm font-semibold">{{ printing.set }}</p>
+                                    <p class="text-xs text-gray-500">#{{ printing.collector_number }}</p>
+                                </div>
+                            </div>
+                             <p v-else class="text-red-500 mt-2">No versions found for this card.</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end gap-3 border-t pt-4">
+                        <button @click="bulkAddStep = 1" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Back</button>
+                        <button @click="handleBulkAddSave" :disabled="isAddingCards" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-gray-400">
+                            <span v-if="isAddingCards">Adding...</span>
+                            <span v-else>Add Selected Cards</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <transition name="fade" mode="out-in">
             <!-- Login Screen -->
             <div v-if="!user" key="login" class="min-h-screen flex items-center justify-center bg-gray-100 p-4">
@@ -33,10 +76,10 @@
                         <button @click="handleLogin" class="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 font-semibold">Login</button>
                         <button @click="handleRegister" class="w-full bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 font-semibold">Register</button>
                     </div>
-                    <div class="my-6 flex items-center"><hr class="w-full"><span class="px-2 text-sm">OR</span><hr class="w-full"></div>
+                    <div class="my-6 flex items-center"><hr class="w-full"><span class="px-2 text-sm text-gray-400">OR</span><hr class="w-full"></div>
                     <button @click="handleGoogleLogin" class="w-full flex items-center justify-center gap-3 border py-2 rounded-lg hover:bg-gray-100">
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
-                        <span class="font-semibold">Sign in with Google</span>
+                        <span class="font-semibold text-gray-700">Sign in with Google</span>
                     </button>
                 </div>
             </div>
@@ -61,7 +104,7 @@
                     <div class="mt-auto">
                         <div class="p-2">
                             <div class="flex items-center space-x-3 mb-2">
-                                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">{{ user.email ? user.email.charAt(0).toUpperCase() : 'U' }}</div>
+                                <img :src="userProfile.photoURL" class="w-10 h-10 rounded-full bg-gray-200 object-cover" :alt="userProfile.displayName">
                                 <div>
                                     <p class="text-sm font-semibold truncate">{{ userProfile.displayName || 'User' }}</p>
                                     <p class="text-xs text-gray-500 truncate">{{ user.email }}</p>
@@ -93,7 +136,14 @@
 
                     <!-- Social Feed Page -->
                     <div v-if="currentPage === 'social'">
-                        <h1 class="text-3xl font-bold">Social Feed</h1>
+                        <div class="flex items-center justify-between">
+                            <h1 class="text-3xl font-bold">Social Feed</h1>
+                            <div class="flex border-b">
+                                <button @click="socialFeedTab = 'public'" :class="getSettingsTabClass('public', socialFeedTab, true)">Public</button>
+                                <button @click="socialFeedTab = 'groups'" :class="getSettingsTabClass('groups', socialFeedTab, true)">Your Groups</button>
+                                <button @click="socialFeedTab = 'friends'" :class="getSettingsTabClass('friends', socialFeedTab, true)">Your Friends</button>
+                            </div>
+                        </div>
                         <p class="text-gray-600 mt-1">Connect with the TCG community.</p>
                         <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border">
                             <textarea v-model="newPostContent" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="What's happening in your TCG world?"></textarea>
@@ -115,13 +165,16 @@
                             </div>
                         </div>
                         <div class="mt-6 space-y-4">
-                            <div v-for="post in posts" :key="post.id" class="bg-white p-4 rounded-lg shadow-sm border">
+                            <div v-for="post in filteredPosts" :key="post.id" class="bg-white p-4 rounded-lg shadow-sm border">
                                 <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="font-semibold">{{ post.authorUsername || 'Anonymous' }}</p>
-                                        <p class="text-xs text-gray-400">{{ formatDate(post.createdAt) }}</p>
+                                    <div class="flex items-center gap-3">
+                                        <img :src="post.authorPhotoURL" class="w-10 h-10 rounded-full bg-gray-200 object-cover" :alt="post.authorUsername">
+                                        <div>
+                                            <p class="font-semibold">{{ post.authorUsername || 'Anonymous' }}</p>
+                                            <p class="text-xs text-gray-400">{{ formatDate(post.createdAt) }}</p>
+                                        </div>
                                     </div>
-                                    <button v-if="userProfile && userProfile.isAdmin" @click="deletePost(post.id)" class="text-red-500 hover:text-red-700 p-1 rounded-full">
+                                    <button v-if="userProfile && (userProfile.isAdmin || post.authorId === user.uid)" @click="deletePost(post.id)" class="text-red-500 hover:text-red-700 p-1 rounded-full">
                                         <span class="material-icons">delete</span>
                                     </button>
                                 </div>
@@ -133,12 +186,139 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Collections Page -->
+                    <div v-if="currentPage === 'collections'">
+                        <div class="flex items-center justify-between">
+                            <h1 class="text-3xl font-bold">Collections</h1>
+                            <div class="flex border-b">
+                                <button @click="currentCollectionView = 'collection'" :class="getSettingsTabClass('collection', currentCollectionView, true)">My Collection</button>
+                                <button @click="currentCollectionView = 'wishlist'" :class="getSettingsTabClass('wishlist', currentCollectionView, true)">My Wishlist</button>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mt-1">Manage your TCG assets and desires.</p>
+                        
+                        <div class="mt-6 bg-white p-4 rounded-lg shadow-sm border flex flex-col gap-4">
+                            <div class="flex items-center gap-2">
+                                <button @click="importFromCSV" class="action-btn bg-green-500 hover:bg-green-600"><span class="material-icons">file_upload</span> Import CSV</button>
+                                <button @click="bulkAddFromText" class="action-btn bg-green-500 hover:bg-green-600"><span class="material-icons">add_box</span> Bulk Add</button>
+                                <button @click="exportAsText" class="action-btn bg-blue-500 hover:bg-blue-600"><span class="material-icons">file_download</span> Export</button>
+                                <button @click="quickEdit" class="action-btn bg-yellow-500 hover:bg-yellow-600"><span class="material-icons">edit</span> Quick Edit</button>
+                            </div>
+                             <div class="flex items-center gap-2">
+                                <input type="search" v-model="searchQuery" placeholder="Search collection..." class="w-full max-w-xs px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <div class="flex-grow"></div>
+                                <select v-model="filters.set" class="filter-select"><option value="all">All Sets</option><option>Alpha</option><option>Beta</option></select>
+                                <select v-model="filters.rarity" class="filter-select"><option value="all">All Rarities</option><option>Mythic</option><option>Rare</option></select>
+                                <select v-model="filters.color" class="filter-select"><option value="all">All Colors</option><option>W</option><option>U</option><option>B</option><option>R</option><option>G</option></select>
+                                <div class="flex items-center border rounded-md p-0.5">
+                                    <button @click="displayMode = 'grid'" :class="{'bg-gray-200': displayMode === 'grid'}" class="p-1 rounded-md"><span class="material-icons">grid_view</span></button>
+                                    <button @click="displayMode = 'list'" :class="{'bg-gray-200': displayMode === 'list'}" class="p-1 rounded-md"><span class="material-icons">view_list</span></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <div v-if="isLoading" class="text-center text-gray-500 py-8">Loading Collection...</div>
+                            <div v-else>
+                                <div v-if="currentCollectionView === 'collection'">
+                                    <div v-if="displayMode === 'grid'" class="collection-grid">
+                                        <div v-for="card in filteredCollection" :key="card.id" class="card-grid-item">
+                                            <img :src="card.imageUrl" :alt="card.name" class="w-full rounded-md">
+                                            <p class="font-semibold text-sm mt-1">{{ card.name }}</p>
+                                        </div>
+                                    </div>
+                                    <div v-if="displayMode === 'list'" class="collection-list">
+                                        <div class="card-list-item-header">
+                                            <p>Name</p><p>Set</p><p>Rarity</p><p class="text-right">Value</p>
+                                        </div>
+                                        <div v-for="card in filteredCollection" :key="card.id" class="card-list-item">
+                                            <p class="font-semibold">{{ card.name }}</p>
+                                            <p>{{ card.set }}</p>
+                                            <p>{{ card.rarity }}</p>
+                                            <p class="font-semibold text-right">${{ card.value }}</p>
+                                        </div>
+                                    </div>
+                                    <p v-if="filteredCollection.length === 0" class="text-center text-gray-500 py-8">Your collection is empty or no cards match your filters.</p>
+                                </div>
+                                <div v-if="currentCollectionView === 'wishlist'" class="bg-white p-8 rounded-lg shadow-sm border">
+                                    <p class="text-center text-gray-500">Your wishlist is empty. Add cards you want to acquire!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
-                    <!-- Other Pages (Placeholders) -->
-                    <div v-if="['collections', 'marketplace', 'trading', 'messages', 'profile'].includes(currentPage)">
+                    <div v-if="['marketplace', 'trading', 'messages'].includes(currentPage)">
                         <h1 class="text-3xl font-bold capitalize">{{ currentPage }}</h1>
                         <div class="mt-6 bg-white p-8 rounded-lg shadow-sm border">
                             <p class="text-center text-gray-500">This feature is coming soon!</p>
+                        </div>
+                    </div>
+
+                    <!-- Profile Page -->
+                    <div v-if="currentPage === 'profile'">
+                        <div class="bg-white rounded-lg shadow-sm border">
+                            <!-- Profile Header -->
+                            <div class="p-6">
+                                <div class="flex items-center space-x-6">
+                                    <img :src="userProfile.photoURL" class="w-24 h-24 rounded-full border-4 border-white shadow-md" :alt="userProfile.displayName">
+                                    <div>
+                                        <h1 class="text-3xl font-bold">{{ userProfile.displayName }}</h1>
+                                        <p class="text-gray-500">@{{ userProfile.handle }}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-6 grid grid-cols-4 gap-4 text-center">
+                                    <div><p class="text-2xl font-bold">{{ stats.tradeCount || 0 }}</p><p class="text-sm text-gray-500">Trades</p></div>
+                                    <div><p class="text-2xl font-bold">{{ stats.followers || 0 }}</p><p class="text-sm text-gray-500">Followers</p></div>
+                                    <div><p class="text-2xl font-bold">{{ stats.following || 0 }}</p><p class="text-sm text-gray-500">Following</p></div>
+                                    <div><p class="text-2xl font-bold">{{ posts.filter(p => p.authorId === user.uid).length }}</p><p class="text-sm text-gray-500">Posts</p></div>
+                                </div>
+                            </div>
+                            <!-- Profile Tabs -->
+                            <div class="border-t">
+                                <nav class="flex">
+                                    <button @click="profileTab = 'overview'" :class="getSettingsTabClass('overview', profileTab, true)">Overview</button>
+                                    <button @click="profileTab = 'collection'" :class="getSettingsTabClass('collection', profileTab, true)">Collection</button>
+                                    <button @click="profileTab = 'trades'" :class="getSettingsTabClass('trades', profileTab, true)">Trade History</button>
+                                    <button @click="profileTab = 'posts'" :class="getSettingsTabClass('posts', profileTab, true)">Posts</button>
+                                </nav>
+                            </div>
+                        </div>
+                        <!-- Tab Content -->
+                        <div class="mt-6">
+                            <div v-if="profileTab === 'overview'">
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                                        <h3 class="font-semibold mb-4">Collection Stats</h3>
+                                        <p class="text-center text-gray-500 py-4">Collection stats will be shown here.</p>
+                                    </div>
+                                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                                        <h3 class="font-semibold mb-4">Reputation Breakdown</h3>
+                                        <p class="text-center text-gray-500 py-4">Reputation breakdown will be shown here.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="profileTab === 'collection'">
+                                <div class="collection-grid">
+                                     <div v-for="card in userCollection" :key="card.id" class="card-grid-item">
+                                        <img :src="card.imageUrl" :alt="card.name" class="w-full rounded-md">
+                                        <p class="font-semibold text-sm mt-1">{{ card.name }}</p>
+                                    </div>
+                                </div>
+                                <p v-if="userCollection.length === 0" class="text-center text-gray-500 py-8">This user's collection is empty.</p>
+                            </div>
+                            <div v-if="profileTab === 'trades'">
+                                <div class="bg-white p-8 rounded-lg shadow-sm border"><p class="text-center text-gray-500">Trade history will be shown here.</p></div>
+                            </div>
+                            <div v-if="profileTab === 'posts'">
+                                 <div class="space-y-4">
+                                    <div v-for="post in posts.filter(p => p.authorId === user.uid)" :key="post.id" class="bg-white p-4 rounded-lg shadow-sm border">
+                                        <p class="text-gray-700 mt-2 whitespace-pre-wrap">{{ post.content }}</p>
+                                        <p class="text-xs text-gray-400 mt-2 text-right">{{ formatDate(post.createdAt) }}</p>
+                                    </div>
+                                    <p v-if="posts.filter(p => p.authorId === user.uid).length === 0" class="text-center text-gray-500 py-8">This user has not made any posts.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -146,25 +326,29 @@
                     <div v-if="currentPage === 'settings'">
                         <h1 class="text-3xl font-bold">Settings</h1>
                         <p class="text-gray-600 mt-1">Customize your experience.</p>
-                        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div class="md:col-span-1">
                                 <nav class="flex flex-col space-y-1">
-                                    <a href="#" @click.prevent="currentSettingsTab = 'account'" :class="getSettingsTabClass('account')">Account</a>
-                                    <a href="#" @click.prevent="currentSettingsTab = 'shipping'" :class="getSettingsTabClass('shipping')">Shipping</a>
-                                    <a href="#" @click.prevent="currentSettingsTab = 'security'" :class="getSettingsTabClass('security')">Security</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'account'" :class="getSettingsTabClass('account', currentSettingsTab)">Account</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'shipping'" :class="getSettingsTabClass('shipping', currentSettingsTab)">Shipping</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'security'" :class="getSettingsTabClass('security', currentSettingsTab)">Security</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'personality'" :class="getSettingsTabClass('personality', currentSettingsTab)">Player Personality</a>
+                                    <a href="#" @click.prevent="currentSettingsTab = 'payouts'" :class="getSettingsTabClass('payouts', currentSettingsTab)">Sales & Payouts</a>
                                 </nav>
                             </div>
-                            <div class="md:col-span-2">
+                            <div class="md:col-span-3">
+                                <div v-if="settingsSaved" class="mb-4 p-3 bg-green-100 text-green-700 text-sm rounded-lg">Settings saved successfully!</div>
+                                <!-- Account Settings -->
                                 <div v-if="currentSettingsTab === 'account'" class="bg-white p-6 rounded-lg shadow-sm border">
                                     <h2 class="text-xl font-semibold mb-4">Account Settings</h2>
                                     <div class="space-y-4">
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700">Display Name</label>
-                                            <input v-model="displayName" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
+                                            <label class="settings-label">Display Name</label>
+                                            <input v-model="displayName" type="text" class="settings-input">
                                         </div>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700">Username (@handle)</label>
-                                            <input v-model="username" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
+                                            <label class="settings-label">Username (@handle)</label>
+                                            <input v-model="handle" type="text" class="settings-input">
                                         </div>
                                     </div>
                                     <h3 class="text-lg font-semibold mt-6 mb-2">Pricing Preference</h3>
@@ -172,14 +356,53 @@
                                         <label class="flex items-center"><input type="radio" v-model="pricePreference" value="usd" name="price" class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300"> <span class="ml-2">TCGPlayer (USD)</span></label>
                                         <label class="flex items-center"><input type="radio" v-model="pricePreference" value="eur" name="price" class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300"> <span class="ml-2">CardMarket (EUR)</span></label>
                                     </div>
-                                    <div class="mt-6">
-                                        <button @click="saveProfileSettings" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Account Settings</button>
-                                        <p v-if="settingsSaved" class="text-green-600 text-sm mt-2">Settings saved!</p>
+                                </div>
+                                <!-- Shipping Settings -->
+                                <div v-if="currentSettingsTab === 'shipping'" class="bg-white p-6 rounded-lg shadow-sm border">
+                                    <h2 class="text-xl font-semibold mb-4">Shipping Profiles</h2>
+                                    <p class="text-sm text-gray-500 mb-4">Set your flat-rate shipping costs.</p>
+                                    <div class="space-y-4">
+                                        <div><label class="settings-label">Domestic</label><input v-model="shippingInfo.domestic" type="text" class="settings-input" placeholder="e.g., $5.00"></div>
+                                        <div><label class="settings-label">Europe</label><input v-model="shippingInfo.europe" type="text" class="settings-input" placeholder="e.g., $15.00"></div>
+                                        <div><label class="settings-label">North America</label><input v-model="shippingInfo.northAmerica" type="text" class="settings-input" placeholder="e.g., $20.00"></div>
+                                        <div><label class="settings-label">Rest of World</label><input v-model="shippingInfo.restOfWorld" type="text" class="settings-input" placeholder="e.g., $25.00"></div>
                                     </div>
                                 </div>
-                                <div v-if="['shipping', 'security'].includes(currentSettingsTab)" class="bg-white p-6 rounded-lg shadow-sm border">
-                                    <h2 class="text-xl font-semibold capitalize mb-4">{{ currentSettingsTab }} Settings</h2>
-                                    <p class="text-center text-gray-500">This feature is coming soon.</p>
+                                <!-- Security Settings -->
+                                <div v-if="currentSettingsTab === 'security'" class="bg-white p-6 rounded-lg shadow-sm border">
+                                    <h2 class="text-xl font-semibold mb-4">Security</h2>
+                                     <div class="space-y-4">
+                                        <div>
+                                            <label class="settings-label">Password</label>
+                                            <p class="text-sm text-gray-500">To change your password, please use the password reset option.</p>
+                                            <button @click="handlePasswordReset" class="mt-2 px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Send Password Reset Email</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Player Personality Settings -->
+                                <div v-if="currentSettingsTab === 'personality'" class="bg-white p-6 rounded-lg shadow-sm border">
+                                    <h2 class="text-xl font-semibold mb-4">Player Personality</h2>
+                                    <div class="space-y-4">
+                                        <div><label class="settings-label">Primary Playstyle</label><input v-model="playerPersonality.primaryPlaystyle" type="text" class="settings-input" placeholder="e.g., Aggro, Control, Combo"></div>
+                                        <div><label class="settings-label">Favorite Format</label><input v-model="playerPersonality.favoriteFormat" type="text" class="settings-input" placeholder="e.g., Commander, Modern, Standard"></div>
+                                        <div><label class="settings-label">Pet Card</label><input v-model="playerPersonality.petCard" type="text" class="settings-input" placeholder="The one card you love!"></div>
+                                        <div><label class="settings-label">Nemesis Card</label><input v-model="playerPersonality.nemesisCard" type="text" class="settings-input" placeholder="The card you hate to see!"></div>
+                                    </div>
+                                </div>
+                                <!-- Sales & Payouts Settings -->
+                                <div v-if="currentSettingsTab === 'payouts'" class="bg-white p-6 rounded-lg shadow-sm border">
+                                    <h2 class="text-xl font-semibold mb-4">Sales & Payouts</h2>
+                                    <p class="text-sm text-gray-500 mb-4">Your bank information for receiving payouts from sales. This data is stored securely.</p>
+                                    <div class="space-y-4">
+                                        <div><label class="settings-label">Account Holder Name</label><input v-model="payoutInfo.accountHolder" type="text" class="settings-input"></div>
+                                        <div><label class="settings-label">IBAN</label><input v-model="payoutInfo.iban" type="text" class="settings-input"></div>
+                                        <div><label class="settings-label">SWIFT / BIC</label><input v-model="payoutInfo.swiftBic" type="text" class="settings-input"></div>
+                                        <div><label class="settings-label">Bank Name</label><input v-model="payoutInfo.bankName" type="text" class="settings-input"></div>
+                                    </div>
+                                </div>
+                                <!-- Save Button -->
+                                <div class="mt-6">
+                                    <button @click="saveProfileSettings" class="settings-save-btn">Save All Changes</button>
                                 </div>
                             </div>
                         </div>
